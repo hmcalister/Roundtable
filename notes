@@ -1,0 +1,2 @@
+# Requires dev dependencies. Currently using jack
+sudo apt-get install libjack-jackd2-dev
