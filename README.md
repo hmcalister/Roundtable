@@ -81,3 +81,39 @@ Testing throughout this section is going to be extremely difficult!
     - Interactions beyond simple audio-in, audio-out appear to be complex enough to warrant a user interface
     - Something terminal based, which could be bound to underlying data models with ease, could be useful
     - A cross-platform GUI could be more difficult to implement correctly
+
+### Building of RtAudio
+
+Currently RtAudio is built with make:
+
+- `make windows` for windows target
+- `make linux` for linux target
+
+The only difference is the libaries linked and the audio backend defined e.g.  `-D__UNIX_JACK__`  for jack audio on linux
+
+```Make
+
+microphone: microphone.cpp
+	g++ -o microphone microphone.cpp RtAudio.cpp -D__UNIX_JACK__ -lpthread -lm -ljack 
+
+
+WINLIBS :=  -lole32 -lwinmm -lksuser -lmfplat -lmfuuid -lwmcodecdspuuid
+microphoneWindows: microphone.cpp
+	g++ -o microphoneWindows microphone.cpp RtAudio.cpp -D__WINDOWS_WASAPI__ $(WINLIBS)
+```
+
+This also builds a binary for listing audio devices, which may be useful for debugging and showing device related requirements e.g. sample rate.
+
+The `./microphone` just records the system default mic for provided amount of seconds and writes it to a wav file for testing proof of concept.
+The usage:
+
+```
+usage: record N fs <duration> <device> <channelOffset>
+    N                     = number of channels
+    fs                    = the sample rate
+    duration              = optional time in seconds to record (default = 2.0)
+    channelOffset         = an optional channel offset on the "
+    device       (default = 0)
+  
+```
+
