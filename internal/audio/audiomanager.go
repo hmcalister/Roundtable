@@ -9,14 +9,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/hmcalister/roundtable/internal/audio/device"
 	"github.com/hraban/opus"
+	"github.com/pion/webrtc/v4"
 	"github.com/pion/webrtc/v4/pkg/media"
 )
 
 const (
-	OPUS_SAMPLE_RATE = 48000
-	OPUS_CHANNELS    = 1
-	SAMPLE_DURATION  = 20 * time.Millisecond
-	BUFFER_SIZE      = 8192
+	OPUS_SAMPLE_DURATION     = 20 * time.Millisecond
+	encoderDecoderBufferSize = 8192
+)
+
+var (
+	RTPCodecCapability = webrtc.RTPCodecCapability{
+		MimeType: webrtc.MimeTypeOpus,
+	}
 )
 
 // A singleton manager for Audio IO.
@@ -53,7 +58,11 @@ func NewAudioManager(
 		logger = slog.Default()
 	}
 
-	encoder, err := opus.NewEncoder(OPUS_SAMPLE_RATE, OPUS_CHANNELS, opus.Application(opus.AppVoIP))
+	encoder, err := opus.NewEncoder(
+		audioInputDevice.SampleRate(),
+		audioInputDevice.NumChannels(),
+		opus.Application(opus.AppVoIP),
+	)
 	if err != nil {
 		logger.Error("error when creating OPUS encoder", "err", err)
 	}
@@ -74,7 +83,7 @@ func NewAudioManager(
 // Fan-out the audio input stream data to all listeners
 func (manager *AudioManager) handleAudioInput() {
 	go func() {
-		encodedBuffer := make([]byte, BUFFER_SIZE)
+		encodedBuffer := make([]byte, encoderDecoderBufferSize)
 		inputStream := manager.audioInputDevice.GetStream()
 
 		for inputData := range inputStream {
@@ -85,7 +94,7 @@ func (manager *AudioManager) handleAudioInput() {
 			}
 			sample := media.Sample{
 				Data:     encodedBuffer[:numEncodedBytes],
-				Duration: SAMPLE_DURATION,
+				Duration: OPUS_SAMPLE_DURATION,
 			}
 
 			manager.inputListenersMutex.Lock()
@@ -139,14 +148,14 @@ func (manager *AudioManager) AddInputListener() (<-chan media.Sample, context.Ca
 
 // Add an output source, something that can play audio on this client.
 // Outout sources can play audio by sending OPUS encoded data along the returned channel.
-func (manager *AudioManager) AddOutputSource() chan<- []byte {
+func (manager *AudioManager) AddOPUSOutputSource(sampleRate int, numChannels int) chan<- []byte {
 	dataChannel := make(chan []byte)
-	decoder, err := opus.NewDecoder(OPUS_SAMPLE_RATE, OPUS_CHANNELS)
+	decoder, err := opus.NewDecoder(sampleRate, numChannels)
 	if err != nil {
 		manager.logger.Error("error while constructing decoder", "err", err)
 	}
 	go func() {
-		decodedBuffer := make([]int16, BUFFER_SIZE)
+		decodedBuffer := make([]int16, encoderDecoderBufferSize)
 
 		// When dataChannel is closed, we can stop listening on this loop
 		for incomingData := range dataChannel {

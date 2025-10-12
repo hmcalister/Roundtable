@@ -12,6 +12,8 @@ type AudioInputDevice interface {
 	//
 	// Raw audio data (as PCMFrames) will arrive on the returned channel.
 	GetStream() <-chan []int16
+	NumChannels() int
+	SampleRate() int
 }
 
 // Interface for audio output devices, e.g. speakers
