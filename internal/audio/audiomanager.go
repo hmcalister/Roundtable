@@ -146,7 +146,21 @@ func (manager *AudioManager) AddInputListener() (<-chan media.Sample, context.Ca
 	return dataChannel, cancel
 }
 
-// Add an output source, something that can play audio on this client.
+// Add a PCM output source, something that can play audio on this client.
+// Outout sources can play audio by sending raw PCM data along the returned channel.
+func (manager *AudioManager) AddPCMOutputSource() chan<- []int16 {
+	dataChannel := make(chan []int16)
+	go func() {
+		// When dataChannel is closed, we can stop listening on this loop
+		for incomingData := range dataChannel {
+			slog.Debug("incoming pcm audio", "incomingData", incomingData)
+		}
+	}()
+
+	return dataChannel
+}
+
+// Add an OPUS output source, something that can play audio on this client.
 // Outout sources can play audio by sending OPUS encoded data along the returned channel.
 func (manager *AudioManager) AddOPUSOutputSource(sampleRate int, numChannels int) chan<- []byte {
 	dataChannel := make(chan []byte)
